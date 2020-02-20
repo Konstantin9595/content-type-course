@@ -100,8 +100,81 @@ class Ktn_courses_Admin {
 
 	}
 
-	public function admin_courses_type() {
-		register_post_type('courses', array(
+	// (
+	// 	[term_id] => 212
+	// 	[name] => Онлайн школы
+	// 	[slug] => onlajn-shkoly
+	// 	[term_group] => 0
+	// 	[term_taxonomy_id] => 212
+	// 	[taxonomy] => job_listing_category
+	// 	[description] => 
+	// 	[parent] => 390
+	// 	[count] => 8
+	// 	[filter] => raw
+	// 	[term_type] => 0
+	// 	[term_font_icon] => 0
+	// )
+
+	public function ktn_admin_metabox_job_listing() {
+		add_meta_box( 'ktn_courses', 'Связь с Курсами', function($post) {
+			$relatedItems = get_posts( array(
+				'post_type' => 'job_listing',
+				'tax_query' => array(
+					array(
+						'taxonomy' => 'job_listing_category',
+						// 'field'    => 'slug',
+						'terms'    => 212
+					)
+				)
+			));
+			// echo "<pre>";
+			// 	print_r($relatedItems);
+			// echo "</pre>";
+			if( $relatedItems ){
+				// чтобы портянка пряталась под скролл...
+				echo '
+				<div style="max-height:200px; overflow-y:auto;">
+					<ul>
+				';
+		
+				foreach( $relatedItems as $item ){
+					echo '
+					<li><label>
+						<input type="radio" name="post_parent" value="'. $item->ID .'" '. checked($item->ID, $post->post_parent, 0) .'> '. esc_html($item->post_title) .'
+					</label></li>
+					';
+				}
+		
+				echo '
+					</ul>
+				</div>';
+			}
+			else
+				echo 'Пусто...';
+		}, 'courses', 'side', 'low'  );
+	}
+
+	public function ktn_admin_acf_init() {
+		add_filter( "acf/prepare_field/name=date_and_time_start_coruse", function($field) {
+
+			$value = $field['value'];
+			if($value) {
+
+				
+			}else {
+				// echo "Поле НЕ заполненно";
+			}
+
+			return $field;
+		});
+
+
+	}
+
+	public function ktn_admin_courses_type() {
+		$type = 'courses';
+
+		register_post_type($type, array(
 			'label'  => null,
 			'labels' => array(
 				'name'               => 'Курсы', // основное название для типа записи
@@ -128,17 +201,28 @@ class Ktn_courses_Admin {
 			'show_in_rest'        => true, // добавить в REST API. C WP 4.7
 			'rest_base'           => 'courses', // $post_type. C WP 4.7
 			'menu_position'       => 25,
-			'menu_icon'           => null, 
+			'menu_icon'           => 'dashicons-admin-post', 
 			//'capability_type'   => 'post',
 			//'capabilities'      => 'post', // массив дополнительных прав для этого типа записи
 			//'map_meta_cap'      => null, // Ставим true чтобы включить дефолтный обработчик специальных прав
 			'hierarchical'        => false,
-			'supports'            => [ 'title', 'editor' ], // 'title','editor','author','thumbnail','excerpt','trackbacks','custom-fields','comments','revisions','page-attributes','post-formats'
-			'taxonomies'          => ['courses_category', 'courses_selection', 'job_listing_category'],
+			// 'supports' => get_all_post_type_supports('courses'),
+			'supports'            => array( 'title', 'editor', 'custom-fields', 'comments' ), // 'title','editor','author','thumbnail','excerpt','trackbacks','custom-fields','comments','revisions','page-attributes','post-formats'
+			'taxonomies'          => ['courses_category', 'courses_selection'], // , 'job_listing_category'
 			'has_archive'         => true,
 			'rewrite'             => true,
 			'query_var'           => true,
 		) );
+
+		// $supports = get_all_post_type_supports( 'job_listing' );
+		// echo "<pre>";
+		// 	print_r(get_post_meta(3943));
+		// echo "</pre>";
+		//add_post_type_support( 'courses', [$supports]  );
+		//$post = get_post();
+		// echo "<pre>";
+		// print_r(get_post_meta(3036));
+		// echo "</pre>";
 	}
 
 }

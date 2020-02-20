@@ -74,9 +74,9 @@ require plugin_dir_path( __FILE__ ) . 'includes/class-ktn_courses.php';
  * @since    1.0.0
  */
 function run_ktn_courses() {
-
 	$plugin = new Ktn_courses();
-	$plugin->run();
 
+	$plugin->run();
+	
 }
 run_ktn_courses();
