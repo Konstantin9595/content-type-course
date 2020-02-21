@@ -155,6 +155,65 @@ class Ktn_courses_Admin {
 	}
 
 	public function ktn_admin_acf_init() {
+
+		// Узнаем просрочилось ли время начало курса у кого либо
+		// и если просрочилось то переносим этот курс в архив
+		$posts = get_posts( array(
+			'post_type' => 'courses',
+			'post_status' => 'publish'
+		) );
+
+		foreach($posts as $post) {
+
+			$postHasDate = $this->postHasDate($post->ID);
+
+			if($postHasDate) {
+				$dateVariation = $this->getDateVariation($post->ID);
+
+				// Если истекло
+				if($this->isExpired($dateVariation)) {
+
+					// Проверяем какое именно условие было указанно в админке
+					// в случае истечение периода.
+					if($this->getRules($dateVariation)['type'] === 'diactivate') {
+						wp_update_post(array(
+							'ID'    =>  $post->ID,
+							'post_status'   =>  'draft'
+						));
+						return;
+					}
+					if($this->getRules($dateVariation)['type'] === 'move_date') {
+						
+						$day = $this->getRules($dateVariation)['payload'];
+						$dateType = $dateVariation['ktn_date_type'];
+						$dateGroup = $dateVariation['ktn_date_group'];
+						
+						$currentDate = new DateTime($dateVariation[$dateType]);
+						$newDate = $currentDate->add(new DateInterval("P{$day}D"))->format("Y-m-d");
+
+						// echo "<pre>";
+						// echo "BEFORE :";
+						// print_r(get_field($dateGroup, $post->ID));
+						// echo "</pre>";
+
+						update_field($dateGroup, [
+							$dateType => $newDate
+						], $post->ID);
+
+						return;
+					}
+					if($this->getRules($dateVariation)['type'] === 'nothing') {
+						return;
+					}
+
+					return;
+				}
+				echo "Еще не истекло";
+
+			}
+		}
+
+
 		add_filter( "acf/prepare_field/name=date_and_time_start_coruse", function($field) {
 
 			$value = $field['value'];
@@ -174,13 +233,62 @@ class Ktn_courses_Admin {
 			return $field;
 		});
 
-		// add_filter("acf/fields/taxonomy/result", function( $title, $term, $field, $post_id ) {
-		// 	echo "<pre>";
-		// 		print($field);
-		// 	echo "</pre>";
-		// });
 
 
+
+
+	}
+
+	private function postHasDate($postId) {
+		$issetDateExpire = get_field('isset_data_expire', $postId);
+
+		return $issetDateExpire ? $issetDateExpire : false; 
+	}
+
+	private function getDateVariation($postId) {
+		$expireVariation = get_field('data_expire_variation', $postId);
+
+		switch ($expireVariation) {
+			case 'only_date':
+				$subfield = get_field('only_date_and_time_start_coruse_group', $postId);
+				$subfield['ktn_date_group'] = 'only_date_and_time_start_coruse_group';
+				$subfield['ktn_date_type'] = 'only_date_and_start_coruse';
+				$subfield['ktn_variation_type'] = 'only_date_what_doing_if_data_not_active';
+				
+				return $subfield;
+				break;
+			case 'date_and_time':
+				$subfield = get_field('date_and_time_start_coruse_group', $postId);
+				$subfield['ktn_date_group'] = 'date_and_time_start_coruse_group';
+				$subfield['ktn_date_type'] = 'date_and_time_start_coruse';
+				$subfield['ktn_variation_type'] = 'what_doing_if_data_not_active';
+
+				return $subfield;
+				break;
+			default:
+			   return [];
+		}
+	}
+
+	private function isExpired($variation) {
+		$type = $variation['ktn_date_type'];
+		$date = $variation[$type];
+
+		$postDate = new DateTime($date);
+		$now = new DateTime();
+
+		return $postDate->getTimestamp() <= $now->getTimestamp() ? true : false;
+	}
+
+	private function getRules($variation) {
+		$type = $variation['ktn_variation_type'];
+		$listVariations = $variation[$type];
+
+		return [
+			'type' => $listVariations['what_doing_if_data_not_active_variation'],
+			'payload' => isset($listVariations['what_move_day']) ? $listVariations['what_move_day'] : ''
+		];
+		
 	}
 
 	public function test() {
@@ -217,6 +325,7 @@ class Ktn_courses_Admin {
 	// 	// 	</div>
 	// 	//   </div>";
 	// }
+
 // Модификация страницы редактирования таксаномии
 	// public function ktn_edit_tax_fields($term) {
 	// 	// echo "<pre>";
@@ -314,13 +423,77 @@ class Ktn_courses_Admin {
 				'title' => 'Характеристики для курсов',
 				'fields' => array(
 					array(
+						'key' => 'field_5e4f917f51d3f',
+						'label' => 'Курс имеет дату начала?',
+						'name' => 'isset_data_expire',
+						'type' => 'radio',
+						'instructions' => '',
+						'required' => 1,
+						'conditional_logic' => 0,
+						'wrapper' => array(
+							'width' => '',
+							'class' => '',
+							'id' => '',
+						),
+						'choices' => array(
+							'yes' => 'Да',
+							'no' => 'Нет',
+						),
+						'allow_null' => 0,
+						'other_choice' => 0,
+						'default_value' => 'no',
+						'layout' => 'vertical',
+						'return_format' => 'value',
+						'save_other_choice' => 0,
+					),
+					array(
+						'key' => 'field_5e4f927f18d86',
+						'label' => 'Вариант даты',
+						'name' => 'data_expire_variation',
+						'type' => 'radio',
+						'instructions' => '',
+						'required' => 1,
+						'conditional_logic' => array(
+							array(
+								array(
+									'field' => 'field_5e4f917f51d3f',
+									'operator' => '==',
+									'value' => 'yes',
+								),
+							),
+						),
+						'wrapper' => array(
+							'width' => '',
+							'class' => '',
+							'id' => '',
+						),
+						'choices' => array(
+							'date_and_time' => 'Дата и время',
+							'only_date' => 'Только дата',
+						),
+						'allow_null' => 0,
+						'other_choice' => 0,
+						'default_value' => 'only_date',
+						'layout' => 'vertical',
+						'return_format' => 'value',
+						'save_other_choice' => 0,
+					),
+					array(
 						'key' => 'field_5e4d46c06f11e',
-						'label' => 'Дата и время начало курса (не обязательна к заполнению)',
+						'label' => 'Дата и время начало курса',
 						'name' => 'date_and_time_start_coruse_group',
 						'type' => 'group',
 						'instructions' => '',
-						'required' => 0,
-						'conditional_logic' => 0,
+						'required' => 1,
+						'conditional_logic' => array(
+							array(
+								array(
+									'field' => 'field_5e4f927f18d86',
+									'operator' => '==',
+									'value' => 'date_and_time',
+								),
+							),
+						),
 						'wrapper' => array(
 							'width' => '',
 							'class' => '',
@@ -341,8 +514,8 @@ class Ktn_courses_Admin {
 									'class' => '',
 									'id' => '',
 								),
-								'display_format' => 'd/m/Y g:i',
-								'return_format' => 'd/m/Y g:i',
+								'display_format' => 'Y-m-d g:i',
+								'return_format' => 'Y-m-d H:i:s',
 								'first_day' => 1,
 							),
 							array(
@@ -376,7 +549,7 @@ class Ktn_courses_Admin {
 										'choices' => array(
 											'diactivate' => 'Деактивировать',
 											'nothing' => 'Ничего',
-											'move_date' => 'Перенести дату начала (при выборе откроется новое поле даты)',
+											'move_date' => 'Перенести дату начала (при выборе откроется новое поле)',
 										),
 										'allow_null' => 0,
 										'other_choice' => 0,
@@ -387,11 +560,11 @@ class Ktn_courses_Admin {
 									),
 									array(
 										'key' => 'field_5e4d4cd93f832',
-										'label' => 'На какую дату и время перенести?',
-										'name' => 'what_move_time',
-										'type' => 'date_time_picker',
+										'label' => 'На какое кол-во дней перенести?',
+										'name' => 'what_move_day',
+										'type' => 'number',
 										'instructions' => '',
-										'required' => 0,
+										'required' => 1,
 										'conditional_logic' => array(
 											array(
 												array(
@@ -406,9 +579,126 @@ class Ktn_courses_Admin {
 											'class' => '',
 											'id' => '',
 										),
-										'display_format' => 'd/m/Y g:i',
-										'return_format' => 'd/m/Y g:i',
-										'first_day' => 1,
+										'default_value' => '',
+										'placeholder' => '',
+										'prepend' => '',
+										'append' => '',
+										'min' => '',
+										'max' => '',
+										'step' => '',
+									),
+								),
+							),
+						),
+					),
+					array(
+						'key' => 'field_5e4f93d5455e3',
+						'label' => 'Только дата',
+						'name' => 'only_date_and_time_start_coruse_group',
+						'type' => 'group',
+						'instructions' => '',
+						'required' => 1,
+						'conditional_logic' => array(
+							array(
+								array(
+									'field' => 'field_5e4f927f18d86',
+									'operator' => '==',
+									'value' => 'only_date',
+								),
+							),
+						),
+						'wrapper' => array(
+							'width' => '',
+							'class' => '',
+							'id' => '',
+						),
+						'layout' => 'block',
+						'sub_fields' => array(
+							array(
+								'key' => 'field_5e4f93d5455e4',
+								'label' => 'Дата',
+								'name' => 'only_date_and_start_coruse',
+								'type' => 'date_picker',
+								'instructions' => '',
+								'required' => 0,
+								'conditional_logic' => 0,
+								'wrapper' => array(
+									'width' => '',
+									'class' => '',
+									'id' => '',
+								),
+								'display_format' => 'Y-m-d',
+								'return_format' => 'Y-m-d',
+								'first_day' => 1,
+							),
+							array(
+								'key' => 'field_5e4f93d5455e5',
+								'label' => 'Что делать когда дата неактивна',
+								'name' => 'only_date_what_doing_if_data_not_active',
+								'type' => 'group',
+								'instructions' => '',
+								'required' => 0,
+								'conditional_logic' => 0,
+								'wrapper' => array(
+									'width' => '',
+									'class' => '',
+									'id' => '',
+								),
+								'layout' => 'block',
+								'sub_fields' => array(
+									array(
+										'key' => 'field_5e4f93d5455e6',
+										'label' => 'Выберите вариант (Обязательное поле. По умолчанию "Деактивировать")',
+										'name' => 'what_doing_if_data_not_active_variation',
+										'type' => 'radio',
+										'instructions' => '',
+										'required' => 1,
+										'conditional_logic' => 0,
+										'wrapper' => array(
+											'width' => '',
+											'class' => '',
+											'id' => '',
+										),
+										'choices' => array(
+											'diactivate' => 'Деактивировать',
+											'nothing' => 'Ничего',
+											'move_date' => 'Перенести дату начала (при выборе откроется новое поле)',
+										),
+										'allow_null' => 0,
+										'other_choice' => 0,
+										'default_value' => 'diactivate',
+										'layout' => 'vertical',
+										'return_format' => 'value',
+										'save_other_choice' => 0,
+									),
+									array(
+										'key' => 'field_5e4f93d5455e7',
+										'label' => 'На какое кол-во дней перенести?',
+										'name' => 'what_move_day',
+										'type' => 'number',
+										'instructions' => '',
+										'required' => 1,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5e4f93d5455e6',
+													'operator' => '==',
+													'value' => 'move_date',
+												),
+											),
+										),
+										'wrapper' => array(
+											'width' => '',
+											'class' => '',
+											'id' => '',
+										),
+										'default_value' => '',
+										'placeholder' => '',
+										'prepend' => '',
+										'append' => '',
+										'min' => '',
+										'max' => '',
+										'step' => '',
 									),
 								),
 							),
@@ -663,6 +953,8 @@ class Ktn_courses_Admin {
 			));
 
 			endif;
+
+
 	}
 
 	public function ktn_admin_courses_type() {

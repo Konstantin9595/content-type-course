@@ -157,8 +157,8 @@ class Ktn_courses {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'init', $plugin_admin, 'ktn_admin_courses_type');
-		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_acf_init');
-		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_add_acf_field_group');
+		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_add_acf_field_group', 20);
+		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_acf_init', 30);
 		$this->loader->add_action( 'add_meta_boxes', $plugin_admin, 'ktn_admin_metabox_job_listing');
 		$this->loader->add_action( 'current_screen', $plugin_admin, 'test');
 
