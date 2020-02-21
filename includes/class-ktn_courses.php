@@ -158,7 +158,15 @@ class Ktn_courses {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'init', $plugin_admin, 'ktn_admin_courses_type');
 		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_acf_init');
+		$this->loader->add_action( 'acf/init', $plugin_admin, 'ktn_admin_add_acf_field_group');
 		$this->loader->add_action( 'add_meta_boxes', $plugin_admin, 'ktn_admin_metabox_job_listing');
+		$this->loader->add_action( 'current_screen', $plugin_admin, 'test');
+
+		// $this->loader->add_action( 'courses_selection_add_form_fields', $plugin_admin, 'ktn_add_tax_fields');
+		// $this->loader->add_action( 'courses_selection_edit_form_fields', $plugin_admin, 'ktn_edit_tax_fields');
+		
+		// $this->loader->add_action( 'create_courses_selection', $plugin_admin, 'ktn_edited_tax_fields');
+		// $this->loader->add_action( 'edited_courses_selection', $plugin_admin, 'ktn_save_tax_fields');
 
 		// add_action('add_meta_boxes', function () {
 		// 	add_meta_box( 'palyer_team', 'Команда игрока', 'player_team_metabox', 'player', 'side', 'low'  );
